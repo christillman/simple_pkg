@@ -192,10 +192,43 @@ feature -- Query
 
 	info (a_name: STRING): detachable PKG_INFO
 			-- Get information about package `a_name`.
+			-- First checks locally installed packages, then falls back to GitHub.
 		require
 			name_not_empty: not a_name.is_empty
 		do
-			Result := registry.fetch_package (a_name)
+			-- Try local first
+			Result := local_info (a_name)
+			-- Fall back to GitHub
+			if Result = Void then
+				Result := registry.fetch_package (a_name)
+			end
+		end
+
+	local_info (a_name: STRING): detachable PKG_INFO
+			-- Get info from locally installed package.
+		require
+			name_not_empty: not a_name.is_empty
+		local
+			l_normalized: STRING
+			l_path: STRING
+			l_ecf_path: STRING
+			l_pkg_path: STRING
+			l_meta: ECF_METADATA
+		do
+			l_normalized := config.normalize_package_name (a_name)
+			l_path := config.package_path (l_normalized)
+			if l_path /= Void and then not l_path.is_empty then
+				l_ecf_path := l_path + "/" + l_normalized + ".ecf"
+				l_pkg_path := l_path + "/package.json"
+				create l_meta.make_from_file (l_ecf_path)
+				if l_meta.is_valid then
+					l_meta.apply_package_json (l_pkg_path)
+					create Result.make (l_normalized)
+					Result.apply_ecf_metadata (l_meta)
+					Result.set_installed (True)
+					Result.set_local_path (l_path)
+				end
+			end
 		end
 
 	is_installed (a_name: STRING): BOOLEAN
