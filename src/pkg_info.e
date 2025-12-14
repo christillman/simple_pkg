@@ -33,6 +33,10 @@ feature {NONE} -- Initialization
 			create github_url.make_empty
 			create ecf_path.make_empty
 			create local_path.make_empty
+			create author.make_empty
+			create keywords.make (5)
+			create category.make_empty
+			create license.make_empty
 		ensure
 			name_set: name.same_string (a_name)
 		end
@@ -55,6 +59,10 @@ feature {NONE} -- Initialization
 			create dependencies.make (5)
 			create ecf_path.make_empty
 			create local_path.make_empty
+			create author.make_empty
+			create keywords.make (5)
+			create category.make_empty
+			create license.make_empty
 
 			-- Extract stars and other metadata
 			stars := l_obj.integer_item ("stargazers_count").to_integer_32
@@ -73,6 +81,15 @@ feature -- Access
 
 	version: STRING
 			-- Current version (git tag or branch)
+
+	version_major: INTEGER
+			-- Semantic version major
+
+	version_minor: INTEGER
+			-- Semantic version minor
+
+	version_release: INTEGER
+			-- Semantic version patch/release
 
 	dependencies: ARRAYED_LIST [STRING]
 			-- List of dependency package names
@@ -97,6 +114,18 @@ feature -- Access
 
 	is_installed: BOOLEAN
 			-- Is this package installed locally?
+
+	author: STRING
+			-- Package author
+
+	keywords: ARRAYED_LIST [STRING]
+			-- Search keywords
+
+	category: STRING
+			-- Package category
+
+	license: STRING
+			-- License type
 
 feature -- Status
 
@@ -192,12 +221,90 @@ feature -- Modification
 			dependencies_set: dependencies = a_deps
 		end
 
+	set_author (a_author: STRING)
+			-- Set author.
+		do
+			author := a_author
+		ensure
+			author_set: author.same_string (a_author)
+		end
+
+	set_keywords (a_keywords: ARRAYED_LIST [STRING])
+			-- Set keywords.
+		do
+			keywords := a_keywords
+		ensure
+			keywords_set: keywords = a_keywords
+		end
+
+	set_category (a_category: STRING)
+			-- Set category.
+		do
+			category := a_category
+		ensure
+			category_set: category.same_string (a_category)
+		end
+
+	set_license (a_license: STRING)
+			-- Set license.
+		do
+			license := a_license
+		ensure
+			license_set: license.same_string (a_license)
+		end
+
+	set_semantic_version (a_major, a_minor, a_release: INTEGER)
+			-- Set semantic version components.
+		require
+			non_negative: a_major >= 0 and a_minor >= 0 and a_release >= 0
+		do
+			version_major := a_major
+			version_minor := a_minor
+			version_release := a_release
+			version := a_major.out + "." + a_minor.out + "." + a_release.out
+		ensure
+			major_set: version_major = a_major
+			minor_set: version_minor = a_minor
+			release_set: version_release = a_release
+		end
+
+	apply_ecf_metadata (a_metadata: ECF_METADATA)
+			-- Apply metadata from ECF parsing.
+		require
+			metadata_valid: a_metadata.is_valid
+		do
+			-- Update description if ECF has one and current is empty
+			if description.is_empty and not a_metadata.description.is_empty then
+				description := a_metadata.description
+			end
+
+			-- Set version from ECF
+			if a_metadata.has_version then
+				set_semantic_version (a_metadata.version_major, a_metadata.version_minor, a_metadata.version_release)
+			end
+
+			-- Set dependencies from ECF
+			dependencies := a_metadata.dependencies
+
+			-- Set author, keywords, category, license
+			if not a_metadata.author.is_empty then
+				author := a_metadata.author
+			end
+			keywords := a_metadata.keywords
+			if not a_metadata.category.is_empty then
+				category := a_metadata.category
+			end
+			if not a_metadata.license.is_empty then
+				license := a_metadata.license
+			end
+		end
+
 feature -- Output
 
 	to_string: STRING
 			-- Human-readable representation.
 		do
-			create Result.make (200)
+			create Result.make (400)
 			Result.append (name)
 			if not version.is_empty then
 				Result.append (" (")
@@ -207,6 +314,27 @@ feature -- Output
 			if not description.is_empty then
 				Result.append ("%N  ")
 				Result.append (description)
+			end
+			if not author.is_empty then
+				Result.append ("%N  Author: ")
+				Result.append (author)
+			end
+			if not category.is_empty then
+				Result.append ("%N  Category: ")
+				Result.append (category)
+			end
+			if not keywords.is_empty then
+				Result.append ("%N  Keywords: ")
+				across keywords as kw loop
+					if @kw.cursor_index > 1 then
+						Result.append (", ")
+					end
+					Result.append (kw)
+				end
+			end
+			if not license.is_empty then
+				Result.append ("%N  License: ")
+				Result.append (license)
 			end
 			if not dependencies.is_empty then
 				Result.append ("%N  Dependencies: ")
@@ -227,8 +355,24 @@ feature -- Output
 			end
 		end
 
+	keywords_string: STRING
+			-- Keywords as comma-separated string for search indexing.
+		do
+			create Result.make (100)
+			across keywords as kw loop
+				if not Result.is_empty then
+					Result.append (" ")
+				end
+				Result.append (kw)
+			end
+		end
+
 invariant
 	name_not_empty: not name.is_empty or else name.is_empty -- Allow empty for error cases
 	dependencies_exist: dependencies /= Void
+	keywords_exist: keywords /= Void
+	author_exists: author /= Void
+	category_exists: category /= Void
+	license_exists: license /= Void
 
 end

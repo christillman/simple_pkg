@@ -94,6 +94,10 @@ feature -- Execution
 				execute_update
 			elseif command.same_string ("search") or command.same_string ("s") then
 				execute_search
+			elseif command.same_string ("browse") or command.same_string ("b") then
+				execute_browse
+			elseif command.same_string ("lock") then
+				execute_lock
 			elseif command.same_string ("list") then
 				execute_list
 			elseif command.same_string ("universe") or command.same_string ("-u") or command.same_string ("--univ") then
@@ -174,24 +178,128 @@ feature -- Commands
 		end
 
 	execute_search
-			-- Search for packages.
+			-- Search for packages using FTS5 fuzzy search.
 		local
-			l_results: ARRAYED_LIST [PKG_INFO]
+			l_search: PKG_SEARCH
+			l_packages: ARRAYED_LIST [PKG_INFO]
+			l_results: ARRAYED_LIST [SEARCH_RESULT]
 		do
 			if command_args.is_empty then
 				console.print_error ("Usage: simple search <query>")
+				console.print_line ("")
+				console.print_line ("Options:")
+				console.print_line ("  simple search <query>           Fuzzy search packages")
+				console.print_line ("  simple search --deps <pkg>      Find packages using <pkg>")
+			elseif command_args.first.same_string ("--deps") and command_args.count >= 2 then
+				-- Search by dependency
+				console.print_line ("Fetching package index...")
+				l_packages := pkg.list_available
+				create l_search.make
+				l_search.build_index (l_packages)
+				l_packages := l_search.search_by_dependency (command_args.i_th (2))
+
+				if l_packages.is_empty then
+					console.print_line ("No packages depend on '" + command_args.i_th (2) + "'")
+				else
+					console.print_line ("Packages using " + command_args.i_th (2) + ":")
+					console.print_line ("")
+					across l_packages as p loop
+						print_package_brief (p)
+					end
+				end
 			else
-				l_results := pkg.search (command_args.first)
+				-- FTS5 fuzzy search
+				console.print_line ("Searching...")
+				l_packages := pkg.list_available
+				create l_search.make
+				l_search.build_index (l_packages)
+				l_results := l_search.search (command_args.first)
 
 				if l_results.is_empty then
 					console.print_line ("No packages found matching '" + command_args.first + "'")
 				else
 					console.print_line ("Found " + l_results.count.out + " package(s):")
 					console.print_line ("")
-					across l_results as p loop
+					across l_results as r loop
+						print_search_result (r)
+					end
+				end
+			end
+		end
+
+	execute_browse
+			-- Browse packages by category.
+		local
+			l_search: PKG_SEARCH
+			l_packages: ARRAYED_LIST [PKG_INFO]
+			l_categories: ARRAYED_LIST [STRING]
+		do
+			console.print_line ("Fetching package index...")
+			l_packages := pkg.list_available
+			create l_search.make
+			l_search.build_index (l_packages)
+
+			if command_args.is_empty then
+				-- List categories
+				l_categories := l_search.list_categories
+				console.print_line ("")
+				console.print_line ("Available categories:")
+				console.print_line ("")
+				across l_categories as cat loop
+					l_packages := l_search.browse_category (cat)
+					console.print_line ("  " + cat + " (" + l_packages.count.out + " packages)")
+				end
+				console.print_line ("")
+				console.print_line ("Use 'simple browse <category>' to see packages in a category.")
+			else
+				-- Browse specific category
+				l_packages := l_search.browse_category (command_args.first)
+				if l_packages.is_empty then
+					console.print_line ("No packages in category '" + command_args.first + "'")
+				else
+					console.print_line ("")
+					console.print_line ("Category: " + command_args.first + " (" + l_packages.count.out + " packages)")
+					console.print_line ("")
+					across l_packages as p loop
 						print_package_brief (p)
 					end
 				end
+			end
+		end
+
+	execute_lock
+			-- Generate or show lock file.
+		local
+			l_lock: PKG_LOCK
+			l_installed: ARRAYED_LIST [STRING]
+			l_path: STRING
+		do
+			l_lock := pkg.config.create_for_directory (pkg.config.install_directory)
+
+			if command_args.has ("--show") or command_args.has ("-s") then
+				-- Show existing lock file
+				l_lock.load
+				if l_lock.is_valid then
+					console.print_line (l_lock.to_string)
+				else
+					console.print_line ("No lock file found.")
+					console.print_line ("Run 'simple lock' to generate one.")
+				end
+			else
+				-- Generate lock file
+				console.print_line ("Generating lock file...")
+				l_installed := pkg.list_installed
+
+				across l_installed as name loop
+					l_path := pkg.config.package_path (name)
+					-- For now, use "main" as version (TODO: read from ECF)
+					l_lock.add_package (name, "main", l_path)
+				end
+
+				l_lock.save
+				console.print_success ("Lock file saved: " + l_lock.default_lock_file_name)
+				console.print_line ("")
+				console.print_line ("Locked " + l_installed.count.out + " packages.")
 			end
 		end
 
@@ -527,7 +635,9 @@ feature -- Commands
 			console.print_line ("  move, mv <pkg>             Move package to current directory")
 			console.print_line ("")
 			console.print_line ("Discovery Commands:")
-			console.print_line ("  search, s <query>          Search for packages")
+			console.print_line ("  search, s <query>          Fuzzy search packages (FTS5)")
+			console.print_line ("  search --deps <pkg>        Find packages using <pkg>")
+			console.print_line ("  browse, b [<category>]     Browse packages by category")
 			console.print_line ("  list                       List all available packages")
 			console.print_line ("  universe, -u               Show all packages with install status")
 			console.print_line ("  inventory, -i              List installed packages")
@@ -541,6 +651,7 @@ feature -- Commands
 			console.print_line ("  doctor, check              Diagnose environment issues")
 			console.print_line ("  outdated                   Check for package updates")
 			console.print_line ("  env [--save]               Show/save environment script")
+			console.print_line ("  lock [--show]              Generate/show lock file")
 			console.print_line ("")
 			console.print_line ("Info:")
 			console.print_line ("  version, -v                Show version")
@@ -675,6 +786,27 @@ feature {NONE} -- Output Helpers
 			console.print_line ("  " + a_pkg.name + l_status)
 			if not a_pkg.description.is_empty then
 				console.print_line ("    " + a_pkg.description)
+			end
+		end
+
+	print_search_result (a_result: SEARCH_RESULT)
+			-- Print search result with relevance info.
+		require
+			result_not_void: a_result /= Void
+		local
+			l_status: STRING
+		do
+			if attached a_result.package as p and then pkg.is_installed (p.name) then
+				l_status := " [installed]"
+			else
+				l_status := ""
+			end
+
+			console.print_line ("  " + a_result.name + l_status + " (" + a_result.relevance_percent.out + "%% match)")
+			if not a_result.snippet.is_empty then
+				console.print_line ("    " + a_result.snippet)
+			elseif not a_result.description.is_empty then
+				console.print_line ("    " + a_result.description)
 			end
 		end
 

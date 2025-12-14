@@ -163,6 +163,48 @@ feature -- Package Name Normalization
 			result_lowercase: Result.same_string (Result.as_lower)
 		end
 
+	parse_package_spec (a_spec: STRING): TUPLE [name: STRING; version: STRING]
+			-- Parse "package@version" or just "package".
+			-- Examples:
+			--   "json" -> ["simple_json", ""]
+			--   "simple_json@1.2.0" -> ["simple_json", "1.2.0"]
+			--   "http@^1.0" -> ["simple_http", "^1.0"]
+		require
+			spec_not_empty: not a_spec.is_empty
+		local
+			l_at_pos: INTEGER
+			l_name, l_ver: STRING
+		do
+			l_at_pos := a_spec.index_of ('@', 1)
+			if l_at_pos > 0 then
+				l_name := a_spec.substring (1, l_at_pos - 1)
+				l_ver := a_spec.substring (l_at_pos + 1, a_spec.count)
+			else
+				l_name := a_spec
+				create l_ver.make_empty
+			end
+			Result := [normalize_package_name (l_name), l_ver]
+		ensure
+			result_attached: Result /= Void
+			name_normalized: Result.name.starts_with ("simple_")
+		end
+
+feature -- Lock File Factory
+
+	create_for_directory (a_directory: STRING): PKG_LOCK
+			-- Create lock file for directory.
+		require
+			directory_not_empty: not a_directory.is_empty
+		local
+			l_path: STRING
+		do
+			l_path := a_directory + path_separator.out + ".simple-lock.json"
+			create Result.make
+			Result.set_file_path (l_path)
+		ensure
+			result_attached: Result /= Void
+		end
+
 feature -- Persistence
 
 	save_config

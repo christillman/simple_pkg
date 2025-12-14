@@ -249,62 +249,68 @@ feature -- ECF Fetching
 			end
 		end
 
-feature {NONE} -- Implementation
-
-	fetch_dependencies (a_package: PKG_INFO)
-			-- Fetch and parse dependencies from ECF file.
+	fetch_ecf_metadata (a_name: STRING): detachable ECF_METADATA
+			-- Fetch and parse ECF metadata for package.
+			-- Also applies package.json metadata if available.
 		require
-			package_not_void: a_package /= Void
+			name_not_empty: not a_name.is_empty
 		local
-			l_ecf: detachable STRING
-			l_deps: ARRAYED_LIST [STRING]
+			l_ecf_content: detachable STRING
+			l_pkg_content: detachable STRING
 		do
-			l_ecf := fetch_ecf_content (a_package.name)
-			if attached l_ecf as ecf_content then
-				l_deps := parse_ecf_dependencies (ecf_content)
-				a_package.set_dependencies (l_deps)
+			l_ecf_content := fetch_ecf_content (a_name)
+			if attached l_ecf_content as ecf_xml and then not ecf_xml.has_substring ("404") then
+				create Result.make_from_content (ecf_xml)
+				if Result.is_valid then
+					-- Also fetch and apply package.json metadata
+					l_pkg_content := fetch_package_json_content (a_name)
+					if attached l_pkg_content as pkg_json and then not pkg_json.has_substring ("404") then
+						Result.apply_package_json_content (pkg_json)
+					end
+				else
+					last_errors.extend ("ECF parse error for " + a_name + ": " + Result.error_message)
+					Result := Void
+				end
 			end
 		end
 
-	parse_ecf_dependencies (a_ecf_content: STRING): ARRAYED_LIST [STRING]
-			-- Parse ECF content and extract simple_* dependencies.
+	fetch_package_json_content (a_name: STRING): detachable STRING
+			-- Fetch raw package.json content for a package.
 		require
-			content_not_empty: not a_ecf_content.is_empty
+			name_not_empty: not a_name.is_empty
 		local
-			l_start, l_end: INTEGER
-			l_location: STRING
+			l_normalized: STRING
+			l_url: STRING
 		do
-			create Result.make (10)
+			l_normalized := config.normalize_package_name (a_name)
 
-			-- Simple parsing: find all library location="$SIMPLE_*" entries
-			from
-				l_start := 1
-			until
-				l_start = 0
-			loop
-				l_start := a_ecf_content.substring_index ("$SIMPLE_", l_start)
-				if l_start > 0 then
-					-- Find the end of the path
-					l_end := a_ecf_content.index_of ('/', l_start)
-					if l_end = 0 then
-						l_end := a_ecf_content.index_of ('\', l_start)
-					end
-					if l_end = 0 then
-						l_end := a_ecf_content.index_of ('"', l_start)
-					end
-					if l_end > l_start then
-						l_location := a_ecf_content.substring (l_start + 1, l_end - 1)
-						-- Convert SIMPLE_JSON to simple_json
-						l_location := l_location.as_lower
-						if not Result.has (l_location) then
-							Result.extend (l_location)
-						end
-					end
-					l_start := l_start + 1
-				end
+			-- Try main branch first
+			l_url := config.github_raw_base + "/" + config.github_org + "/" +
+			         l_normalized + "/main/package.json"
+			Result := http_get (l_url)
+
+			-- Fallback to master branch
+			if Result = Void or else Result.has_substring ("404") then
+				l_url := config.github_raw_base + "/" + config.github_org + "/" +
+				         l_normalized + "/master/package.json"
+				Result := http_get (l_url)
 			end
-		ensure
-			result_attached: Result /= Void
+		end
+
+feature {NONE} -- Implementation
+
+	fetch_dependencies (a_package: PKG_INFO)
+			-- Fetch and parse dependencies from ECF file using ECF_METADATA.
+		require
+			package_not_void: a_package /= Void
+		local
+			l_metadata: detachable ECF_METADATA
+		do
+			l_metadata := fetch_ecf_metadata (a_package.name)
+			if attached l_metadata as meta then
+				-- Apply all ECF metadata to the package
+				a_package.apply_ecf_metadata (meta)
+			end
 		end
 
 	http_get (a_url: STRING): detachable STRING
