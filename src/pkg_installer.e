@@ -1,0 +1,417 @@
+note
+	description: "[
+		Package installer.
+
+		Handles:
+		- Git clone from GitHub
+		- Directory creation
+		- Environment variable setup (persistent on Windows)
+		- Update via git pull
+		- Uninstallation
+
+		Installation directory structure:
+			<install_dir>/
+				simple_json/
+				simple_web/
+				simple_sql/
+				...
+	]"
+	author: "Larry Rix"
+	date: "$Date$"
+	revision: "$Revision$"
+
+class
+	PKG_INSTALLER
+
+create
+	make
+
+feature {NONE} -- Initialization
+
+	make (a_config: PKG_CONFIG)
+			-- Initialize installer with configuration.
+		require
+			config_not_void: a_config /= Void
+		do
+			config := a_config
+			create last_errors.make (10)
+			ensure_directories_exist
+		ensure
+			config_set: config = a_config
+		end
+
+feature -- Access
+
+	config: PKG_CONFIG
+			-- Configuration
+
+	last_errors: ARRAYED_LIST [STRING]
+			-- Errors from last operation
+
+	has_error: BOOLEAN
+			-- Did last operation have errors?
+		do
+			Result := not last_errors.is_empty
+		end
+
+feature -- Status
+
+	is_installed (a_name: STRING): BOOLEAN
+			-- Is package `a_name` installed?
+		require
+			name_not_empty: not a_name.is_empty
+		local
+			l_path: STRING
+			l_dir: DIRECTORY
+		do
+			l_path := config.package_path (a_name)
+			create l_dir.make (l_path)
+			Result := l_dir.exists
+		end
+
+	installed_packages: ARRAYED_LIST [STRING]
+			-- List of installed package names.
+		local
+			l_dir: DIRECTORY
+			l_sub_dir: DIRECTORY
+			l_path: STRING
+		do
+			create Result.make (50)
+			create l_dir.make (config.install_directory)
+
+			if l_dir.exists then
+				l_dir.open_read
+				across l_dir.entries as entry loop
+					if attached entry.name as l_name and then l_name.starts_with ("simple_") then
+						-- Check if it's actually a directory
+						l_path := config.install_directory + config.path_separator.out + l_name.to_string_8
+						create l_sub_dir.make (l_path)
+						if l_sub_dir.exists then
+							Result.extend (l_name.to_string_8)
+						end
+					end
+				end
+				l_dir.close
+			end
+		ensure
+			result_attached: Result /= Void
+		end
+
+feature -- Installation
+
+	install_package (a_name: STRING)
+			-- Install package `a_name` from GitHub.
+		require
+			name_not_empty: not a_name.is_empty
+		local
+			l_normalized: STRING
+			l_clone_url: STRING
+			l_target_path: STRING
+			l_process: SIMPLE_PROCESS
+			l_cmd: STRING
+		do
+			last_errors.wipe_out
+			l_normalized := config.normalize_package_name (a_name)
+
+			if is_installed (l_normalized) then
+				-- Already installed, skip
+			else
+				l_clone_url := "https://github.com/" + config.github_org + "/" + l_normalized + ".git"
+				l_target_path := config.package_path (l_normalized)
+
+				-- Git clone
+				l_cmd := "git clone --depth 1 " + l_clone_url + " %"" + l_target_path + "%""
+
+				create l_process.make
+				l_process.run (l_cmd)
+
+				if l_process.last_exit_code = 0 then
+					-- Set up environment variable
+					setup_environment_variable (l_normalized, l_target_path)
+				else
+					last_errors.extend ("Failed to clone " + l_normalized + ": exit code " + l_process.last_exit_code.out)
+					if attached l_process.last_error as err and then not err.is_empty then
+						last_errors.extend ("  " + err)
+					end
+				end
+			end
+		end
+
+	install_multiple (a_names: ARRAYED_LIST [STRING])
+			-- Install multiple packages.
+		require
+			names_not_void: a_names /= Void
+		do
+			across a_names as name loop
+				install_package (name)
+			end
+		end
+
+feature -- Update
+
+	update_package (a_name: STRING)
+			-- Update package `a_name` via git pull.
+		require
+			name_not_empty: not a_name.is_empty
+		local
+			l_normalized: STRING
+			l_path: STRING
+			l_process: SIMPLE_PROCESS
+			l_cmd: STRING
+		do
+			last_errors.wipe_out
+			l_normalized := config.normalize_package_name (a_name)
+			l_path := config.package_path (l_normalized)
+
+			if is_installed (l_normalized) then
+				-- Git pull
+				l_cmd := "git -C %"" + l_path + "%" pull --ff-only"
+
+				create l_process.make
+				l_process.run (l_cmd)
+
+				if l_process.last_exit_code /= 0 then
+					last_errors.extend ("Failed to update " + l_normalized)
+					if attached l_process.last_error as err and then not err.is_empty then
+						last_errors.extend ("  " + err)
+					end
+				end
+			else
+				last_errors.extend ("Package not installed: " + l_normalized)
+			end
+		end
+
+	update_all
+			-- Update all installed packages.
+		local
+			l_installed: ARRAYED_LIST [STRING]
+		do
+			last_errors.wipe_out
+			l_installed := installed_packages
+			across l_installed as pkg loop
+				update_package (pkg)
+			end
+		end
+
+feature -- Move
+
+	move_package (a_name: STRING)
+			-- Move package from its env var location to current install directory.
+		require
+			name_not_empty: not a_name.is_empty
+		local
+			l_normalized: STRING
+			l_env_name: STRING
+			l_source_path: detachable STRING
+			l_target_path: STRING
+			l_process: SIMPLE_PROCESS
+			l_cmd: STRING
+			l_source_dir, l_target_dir: DIRECTORY
+		do
+			last_errors.wipe_out
+			l_normalized := config.normalize_package_name (a_name)
+			l_env_name := config.package_env_var_name (l_normalized)
+
+			-- Get current location from environment variable
+			l_source_path := config.get_env (l_env_name)
+
+			if not attached l_source_path then
+				last_errors.extend ("Environment variable " + l_env_name + " not set. Package may not be installed.")
+			else
+				create l_source_dir.make (l_source_path)
+				if not l_source_dir.exists then
+					last_errors.extend ("Source directory does not exist: " + l_source_path)
+				else
+					l_target_path := config.package_path (l_normalized)
+
+					-- Check if source and target are the same
+					if l_source_path.same_string (l_target_path) then
+						last_errors.extend ("Package is already in the target directory: " + l_target_path)
+					else
+						create l_target_dir.make (l_target_path)
+						if l_target_dir.exists then
+							last_errors.extend ("Target directory already exists: " + l_target_path)
+						else
+							-- Move the directory
+							if config.is_windows then
+								l_cmd := "move %"" + l_source_path + "%" %"" + l_target_path + "%""
+							else
+								l_cmd := "mv %"" + l_source_path + "%" %"" + l_target_path + "%""
+							end
+
+							create l_process.make
+							l_process.run (l_cmd)
+
+							if l_process.last_exit_code = 0 then
+								-- Update environment variable to new location
+								setup_environment_variable (l_normalized, l_target_path)
+							else
+								last_errors.extend ("Failed to move " + l_normalized)
+								if attached l_process.last_error as err and then not err.is_empty then
+									last_errors.extend ("  " + err)
+								end
+							end
+						end
+					end
+				end
+			end
+		end
+
+feature -- Uninstallation
+
+	uninstall_package (a_name: STRING)
+			-- Remove installed package.
+		require
+			name_not_empty: not a_name.is_empty
+		local
+			l_normalized: STRING
+			l_path: STRING
+			l_process: SIMPLE_PROCESS
+			l_cmd: STRING
+		do
+			last_errors.wipe_out
+			l_normalized := config.normalize_package_name (a_name)
+			l_path := config.package_path (l_normalized)
+
+			if is_installed (l_normalized) then
+				-- Remove directory
+				if config.is_windows then
+					l_cmd := "rmdir /s /q %"" + l_path + "%""
+				else
+					l_cmd := "rm -rf %"" + l_path + "%""
+				end
+
+				create l_process.make
+				l_process.run (l_cmd)
+
+				if l_process.last_exit_code /= 0 then
+					last_errors.extend ("Failed to remove " + l_normalized)
+				end
+			else
+				last_errors.extend ("Package not installed: " + l_normalized)
+			end
+		end
+
+feature -- Environment Setup
+
+	setup_environment_variable (a_package, a_path: STRING)
+			-- Set up environment variable for package.
+		require
+			package_not_empty: not a_package.is_empty
+			path_not_empty: not a_path.is_empty
+		local
+			l_env_name: STRING
+			l_path_win: STRING
+		do
+			l_env_name := config.package_env_var_name (a_package)
+
+			-- Convert path for Windows if needed
+			if config.is_windows then
+				l_path_win := a_path.twin
+				l_path_win.replace_substring_all ("/", "\")
+				config.set_env (l_env_name, l_path_win)
+			else
+				config.set_env (l_env_name, a_path)
+			end
+		end
+
+	setup_all_environment_variables
+			-- Set up environment variables for all installed packages.
+		local
+			l_installed: ARRAYED_LIST [STRING]
+			l_path: STRING
+		do
+			l_installed := installed_packages
+			across l_installed as pkg loop
+				l_path := config.package_path (pkg)
+				setup_environment_variable (pkg, l_path)
+			end
+		end
+
+	generate_env_script: STRING
+			-- Generate shell script to set all environment variables.
+		local
+			l_installed: ARRAYED_LIST [STRING]
+			l_path: STRING
+			l_env_name: STRING
+		do
+			create Result.make (1000)
+
+			if config.is_windows then
+				Result.append ("@echo off%N")
+				Result.append ("REM Simple Eiffel environment setup%N")
+				Result.append ("REM Generated by simple_pkg%N%N")
+			else
+				Result.append ("#!/bin/bash%N")
+				Result.append ("# Simple Eiffel environment setup%N")
+				Result.append ("# Generated by simple_pkg%N%N")
+			end
+
+			l_installed := installed_packages
+			across l_installed as pkg loop
+				l_path := config.package_path (pkg)
+				l_env_name := config.package_env_var_name (pkg)
+
+				if config.is_windows then
+					l_path.replace_substring_all ("/", "\")
+					Result.append ("set " + l_env_name + "=" + l_path + "%N")
+				else
+					Result.append ("export " + l_env_name + "=%"" + l_path + "%"%N")
+				end
+			end
+		ensure
+			result_not_empty: not Result.is_empty
+		end
+
+	save_env_script
+			-- Save environment script to config directory.
+		local
+			l_script: STRING
+			l_file: SIMPLE_FILE
+			l_path: STRING
+		do
+			l_script := generate_env_script
+
+			if config.is_windows then
+				l_path := config.config_directory + "\env_setup.bat"
+			else
+				l_path := config.config_directory + "/env_setup.sh"
+			end
+
+			create l_file.make (l_path)
+			if not l_file.write_all (l_script) then
+				-- Silently fail (best effort)
+			end
+		end
+
+feature {NONE} -- Implementation
+
+	ensure_directories_exist
+			-- Create installation and cache directories if needed.
+		local
+			l_dir: DIRECTORY
+		do
+			-- Install directory
+			create l_dir.make (config.install_directory)
+			if not l_dir.exists then
+				l_dir.recursive_create_dir
+			end
+
+			-- Config directory
+			create l_dir.make (config.config_directory)
+			if not l_dir.exists then
+				l_dir.recursive_create_dir
+			end
+
+			-- Cache directory
+			create l_dir.make (config.cache_directory)
+			if not l_dir.exists then
+				l_dir.recursive_create_dir
+			end
+		end
+
+invariant
+	config_exists: config /= Void
+	errors_exist: last_errors /= Void
+
+end

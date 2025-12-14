@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>simple_pkg - Package Manager for Eiffel</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <div class="logo-container">
+            <img src="images/logo.png" alt="simple_* logo" class="logo">
+        </div>
+        <h1>simple_pkg</h1>
+        <p class="tagline">Package Manager for Eiffel</p>
+        <div class="badges">
+            <span class="badge badge-version">v1.0.0</span>
+            <span class="badge badge-license">MIT</span>
+        </div>
+    </header>
+
+    <nav>
+        <ul>
+            <li><a href="#overview">Overview</a></li>
+            <li><a href="#installation">Installation</a></li>
+            <li><a href="#commands">Commands</a></li>
+            <li><a href="#features">Features</a></li>
+            <li><a href="https://github.com/simple-eiffel/simple_pkg">GitHub</a></li>
+        </ul>
+    </nav>
+
+    <main>
+        <section id="overview">
+            <h2>Overview</h2>
+            <p>
+                <strong>simple_pkg</strong> is a modern, GitHub-based package manager for the Simple Eiffel ecosystem.
+                It dynamically discovers packages from the simple-eiffel organization, handles dependency resolution
+                from ECF files, and manages environment variable setup automatically.
+            </p>
+            <p>Part of the <a href="https://github.com/simple-eiffel">Simple Eiffel</a> ecosystem.</p>
+
+            <div class="quick-start">
+                <h3>Quick Start</h3>
+                <pre><code><span class="comment"># Install the package manager</span>
+<span class="keyword">simple-setup-1.0.0.exe</span>
+
+<span class="comment"># Install packages</span>
+simple install json web sql
+
+<span class="comment"># See what's available</span>
+simple universe
+
+<span class="comment"># Check your environment</span>
+simple doctor</code></pre>
+            </div>
+        </section>
+
+        <section id="installation">
+            <h2>Installation</h2>
+
+            <h3>Windows Installer (Recommended)</h3>
+            <p>Download and run <code>simple-setup-1.0.0.exe</code> from the releases page. The installer:</p>
+            <ul>
+                <li>Installs <code>simple.exe</code> to Program Files</li>
+                <li>Adds the install directory to your PATH</li>
+                <li>Configures automatic environment variable management</li>
+            </ul>
+
+            <h3>Manual Installation</h3>
+            <pre><code><span class="comment"># Clone and build</span>
+git clone https://github.com/simple-eiffel/simple_pkg.git
+cd simple_pkg
+ec -config simple_pkg.ecf -target simple_pkg_exe -finalize -c_compile
+
+<span class="comment"># Add to PATH (PowerShell)</span>
+$env:PATH += ";D:\path\to\simple_pkg\EIFGENs\simple_pkg_exe\F_code"</code></pre>
+        </section>
+
+        <section id="commands">
+            <h2>Commands</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Command</th>
+                        <th>Alias</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>install &lt;pkg&gt;...</code></td>
+                        <td><code>i</code></td>
+                        <td>Install packages with dependencies</td>
+                    </tr>
+                    <tr>
+                        <td><code>update [&lt;pkg&gt;...]</code></td>
+                        <td><code>up</code></td>
+                        <td>Update packages (all if none specified)</td>
+                    </tr>
+                    <tr>
+                        <td><code>uninstall &lt;pkg&gt;</code></td>
+                        <td><code>rm</code></td>
+                        <td>Remove a package</td>
+                    </tr>
+                    <tr>
+                        <td><code>move &lt;pkg&gt;</code></td>
+                        <td><code>mv</code></td>
+                        <td>Move package to current directory</td>
+                    </tr>
+                    <tr>
+                        <td><code>search &lt;query&gt;</code></td>
+                        <td><code>s</code></td>
+                        <td>Search for packages</td>
+                    </tr>
+                    <tr>
+                        <td><code>universe</code></td>
+                        <td><code>-u</code></td>
+                        <td>Show all packages with install status</td>
+                    </tr>
+                    <tr>
+                        <td><code>inventory</code></td>
+                        <td><code>-i</code></td>
+                        <td>List installed packages</td>
+                    </tr>
+                    <tr>
+                        <td><code>info &lt;pkg&gt;</code></td>
+                        <td>-</td>
+                        <td>Show package details</td>
+                    </tr>
+                    <tr>
+                        <td><code>tree [&lt;pkg&gt;]</code></td>
+                        <td><code>deps</code></td>
+                        <td>Show dependency tree</td>
+                    </tr>
+                    <tr>
+                        <td><code>doctor</code></td>
+                        <td><code>check</code></td>
+                        <td>Diagnose environment issues</td>
+                    </tr>
+                    <tr>
+                        <td><code>init &lt;name&gt; [&lt;pkg&gt;...]</code></td>
+                        <td>-</td>
+                        <td>Create new project with dependencies</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <section id="features">
+            <h2>Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <h4>Dynamic Discovery</h4>
+                    <p>Fetches available packages from GitHub API - no static registry needed</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Dependency Resolution</h4>
+                    <p>Parses ECF files to find $SIMPLE_* dependencies automatically</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Environment Setup</h4>
+                    <p>Sets persistent Windows environment variables for each package</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Diagnostics</h4>
+                    <p>Doctor command checks git, EiffelStudio, and environment health</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Visualization</h4>
+                    <p>Tree command shows package dependency graph</p>
+                </div>
+                <div class="feature-card">
+                    <h4>Project Init</h4>
+                    <p>Scaffolds new projects with ECF and dependencies</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="usage">
+            <h2>Usage Examples</h2>
+            <pre><code><span class="comment"># Install multiple packages at once</span>
+simple install json web sql http
+
+<span class="comment"># See everything available vs installed</span>
+simple -u
+
+<span class="comment"># Check what you have installed</span>
+simple -i
+
+<span class="comment"># Get detailed info about a package</span>
+simple info json
+
+<span class="comment"># Show dependency tree</span>
+simple tree web
+
+<span class="comment"># Create a new project with dependencies</span>
+simple init my_api json http web
+
+<span class="comment"># Update all packages</span>
+simple update
+
+<span class="comment"># Check for issues</span>
+simple doctor</code></pre>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 simple_* ecosystem. MIT License.</p>
+        <p>
+            <a href="https://github.com/simple-eiffel/simple_pkg">GitHub</a> |
+            <a href="https://simple-eiffel.github.io">Documentation</a>
+        </p>
+    </footer>
+</body>
+</html>
