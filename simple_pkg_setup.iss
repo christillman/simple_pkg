@@ -36,7 +36,7 @@ WizardSmallImageFile=..\reference_docs\artwork\logo-small-55x58.png
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "addtopath"; Description: "Add to PATH environment variable"; GroupDescription: "Additional options:"; Flags: checkedonce
+Name: "addtopath"; Description: "Add to system PATH (run 'simple' from anywhere)"; GroupDescription: "Additional options:"; Flags: checkedonce
 
 [Files]
 ; Main executable (renamed from simple_pkg.exe to simple.exe) - Using finalized build
@@ -52,8 +52,8 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
     Tasks: addtopath; Check: NeedsAddPath('{app}')
 
 [Run]
-Filename: "{cmd}"; Parameters: "/c echo Simple Eiffel Package Manager installed! && echo Run 'simple --help' for usage."; \
-    Description: "Show installation complete message"; Flags: postinstall shellexec runhidden
+Filename: "{app}\{#MyAppExeName}"; Parameters: "--help"; \
+    Description: "Show simple --help"; Flags: postinstall nowait skipifsilent unchecked
 
 [UninstallRun]
 Filename: "{cmd}"; Parameters: "/c echo Simple uninstalled. Run 'refreshenv' or restart your terminal."; \
