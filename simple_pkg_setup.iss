@@ -52,8 +52,8 @@ Root: HKLM; Subkey: "SYSTEM\CurrentControlSet\Control\Session Manager\Environmen
     Tasks: addtopath; Check: NeedsAddPath('{app}')
 
 [Run]
-Filename: "{app}\{#MyAppExeName}"; Parameters: "--help"; \
-    Description: "Show simple --help"; Flags: postinstall nowait skipifsilent unchecked
+Filename: "https://simple-eiffel.github.io/docs/"; \
+    Description: "Open Simple Eiffel documentation"; Flags: postinstall shellexec nowait skipifsilent
 
 [UninstallRun]
 Filename: "{cmd}"; Parameters: "/c echo Simple uninstalled. Run 'refreshenv' or restart your terminal."; \
