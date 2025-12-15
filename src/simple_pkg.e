@@ -206,17 +206,27 @@ feature -- Query
 
 	local_info (a_name: STRING): detachable PKG_INFO
 			-- Get info from locally installed package.
+			-- Checks environment variable $SIMPLE_* for the package location.
 		require
 			name_not_empty: not a_name.is_empty
 		local
 			l_normalized: STRING
-			l_path: STRING
+			l_env_var: STRING
+			l_path: detachable STRING
 			l_ecf_path: STRING
 			l_pkg_path: STRING
 			l_meta: ECF_METADATA
+			l_env: EXECUTION_ENVIRONMENT
 		do
 			l_normalized := config.normalize_package_name (a_name)
-			l_path := config.package_path (l_normalized)
+			l_env_var := config.package_env_var_name (l_normalized)
+
+			-- Check environment variable for package path
+			create l_env
+			if attached l_env.item (l_env_var) as l_env_path then
+				l_path := l_env_path.to_string_8
+			end
+
 			if l_path /= Void and then not l_path.is_empty then
 				l_ecf_path := l_path + "/" + l_normalized + ".ecf"
 				l_pkg_path := l_path + "/package.json"

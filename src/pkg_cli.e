@@ -841,9 +841,13 @@ feature {NONE} -- Output Helpers
 				console.print_line ("")
 			end
 
-			if pkg.is_installed (a_pkg.name) then
+			if a_pkg.is_installed then
 				console.print_line ("Status: INSTALLED")
-				console.print_line ("Path:   " + pkg.config.package_path (a_pkg.name))
+				if attached a_pkg.local_path as l_path and then not l_path.is_empty then
+					console.print_line ("Path:   " + l_path)
+				else
+					console.print_line ("Path:   " + pkg.config.package_path (a_pkg.name))
+				end
 				console.print_line ("EnvVar: " + pkg.config.package_env_var_name (a_pkg.name))
 			else
 				console.print_line ("Status: Not installed")
@@ -852,7 +856,7 @@ feature {NONE} -- Output Helpers
 
 feature -- Constants
 
-	version: STRING = "1.0.1"
+	version: STRING = "1.0.2"
 			-- Package manager version
 
 end
