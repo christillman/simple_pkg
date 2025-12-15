@@ -903,7 +903,7 @@ feature {NONE} -- Output Helpers
 
 feature -- Constants
 
-	version: STRING = "1.0.3"
+	version: STRING = "1.0.4"
 			-- Package manager version
 
 end

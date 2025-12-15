@@ -496,11 +496,22 @@ feature {NONE} -- Implementation
 						-- Check if it's a simple_* dependency
 						if loc.has_substring ("$SIMPLE_") then
 							l_dep_name := extract_dependency_name (loc)
-							if not l_dep_name.is_empty and then not dependencies.has (l_dep_name) then
+							if not l_dep_name.is_empty and then not has_dependency (l_dep_name) then
 								dependencies.extend (l_dep_name)
 							end
 						end
 					end
+				end
+			end
+		end
+
+	has_dependency (a_name: STRING): BOOLEAN
+			-- Does dependencies list already contain `a_name`?
+			-- Uses string content comparison, not object identity.
+		do
+			across dependencies as dep loop
+				if dep.same_string (a_name) then
+					Result := True
 				end
 			end
 		end
