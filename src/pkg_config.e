@@ -105,7 +105,7 @@ feature -- Environment Variables
 		end
 
 	set_env (a_name, a_value: STRING)
-			-- Set environment variable (persistent on Windows).
+			-- Set environment variable (persistent on Windows and Linux).
 		require
 			name_not_empty: not a_name.is_empty
 			value_not_empty: not a_value.is_empty
@@ -116,11 +116,13 @@ feature -- Environment Variables
 			l_env.set (a_name, a_value)
 			if is_windows then
 				set_windows_env_persistent (a_name, a_value)
+			else
+				set_linux_env_persistent (a_name, a_value)
 			end
 		end
 
 	unset_env (a_name: STRING)
-			-- Remove environment variable (persistent on Windows).
+			-- Remove environment variable (persistent on Windows and Linux).
 		require
 			name_not_empty: not a_name.is_empty
 		local
@@ -130,6 +132,8 @@ feature -- Environment Variables
 			l_env.unset (a_name)
 			if is_windows then
 				unset_windows_env_persistent (a_name)
+			else
+				unset_linux_env_persistent (a_name)
 			end
 		ensure
 			env_removed: get_env (a_name) = Void
@@ -374,6 +378,100 @@ feature {NONE} -- Implementation
 			l_cmd := "reg delete %"HKCU\Environment%" /v " + a_name + " /f"
 			create l_process.make
 			l_process.run (l_cmd)
+		end
+
+	set_linux_env_persistent (a_name, a_value: STRING)
+			-- Set Linux environment variable persistently by appending to ~/.bashrc.
+		require
+			not_windows: not is_windows
+			name_not_empty: not a_name.is_empty
+			value_not_empty: not a_value.is_empty
+		local
+			l_env: SIMPLE_ENV
+			l_bashrc_path: STRING
+			l_file: SIMPLE_FILE
+			l_content: STRING_32
+			l_export_line: STRING
+			l_marker: STRING
+		do
+			create l_env
+			if attached l_env.get ("HOME") as l_home then
+				l_bashrc_path := l_home + "/.bashrc"
+				create l_file.make (l_bashrc_path)
+
+				-- Build export line with marker comment for easy identification
+				l_marker := "# simple_pkg: " + a_name
+				l_export_line := "export " + a_name + "=" + a_value + "  " + l_marker
+
+				if l_file.exists then
+					l_content := l_file.content
+					-- Remove any existing export for this variable (by marker)
+					l_content := remove_bashrc_export (l_content, a_name)
+					-- Append new export
+					l_content.append ("%N" + l_export_line)
+					l_file.write_all (l_content).do_nothing
+				else
+					-- Create new .bashrc with just the export
+					l_file.write_all (l_export_line).do_nothing
+				end
+			end
+		end
+
+	unset_linux_env_persistent (a_name: STRING)
+			-- Remove Linux environment variable from ~/.bashrc.
+		require
+			not_windows: not is_windows
+			name_not_empty: not a_name.is_empty
+		local
+			l_env: SIMPLE_ENV
+			l_bashrc_path: STRING
+			l_file: SIMPLE_FILE
+			l_content: STRING_32
+		do
+			create l_env
+			if attached l_env.get ("HOME") as l_home then
+				l_bashrc_path := l_home + "/.bashrc"
+				create l_file.make (l_bashrc_path)
+
+				if l_file.exists then
+					l_content := l_file.content
+					-- Remove export line for this variable
+					l_content := remove_bashrc_export (l_content, a_name)
+					l_file.write_all (l_content).do_nothing
+				end
+			end
+		end
+
+	remove_bashrc_export (a_content: STRING_32; a_name: STRING): STRING_32
+			-- Remove export line for `a_name' from bashrc content.
+			-- Looks for lines containing "export NAME=" or "# simple_pkg: NAME".
+		require
+			content_attached: a_content /= Void
+			name_not_empty: not a_name.is_empty
+		local
+			l_lines: LIST [STRING_32]
+			l_line: STRING_32
+			l_export_pattern: STRING
+			l_marker_pattern: STRING
+		do
+			create {STRING_32} Result.make (a_content.count)
+			l_export_pattern := "export " + a_name + "="
+			l_marker_pattern := "# simple_pkg: " + a_name
+
+			l_lines := a_content.split ('%N')
+			across l_lines as line loop
+				l_line := line
+				-- Skip lines that export this variable or have our marker
+				if not l_line.has_substring (l_export_pattern) and
+				   not l_line.has_substring (l_marker_pattern) then
+					if not Result.is_empty then
+						Result.append_character ('%N')
+					end
+					Result.append (l_line)
+				end
+			end
+		ensure
+			result_attached: Result /= Void
 		end
 
 invariant
