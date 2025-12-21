@@ -132,7 +132,7 @@ feature -- Installation
 				else
 					last_errors.extend ("Failed to clone " + l_normalized + ": exit code " + l_process.last_exit_code.out)
 					if attached l_process.last_error as err and then not err.is_empty then
-						last_errors.extend ("  " + err)
+						last_errors.extend ("  " + err.to_string_8)
 					end
 				end
 			end
@@ -174,7 +174,7 @@ feature -- Update
 				if l_process.last_exit_code /= 0 then
 					last_errors.extend ("Failed to update " + l_normalized)
 					if attached l_process.last_error as err and then not err.is_empty then
-						last_errors.extend ("  " + err)
+						last_errors.extend ("  " + err.to_string_8)
 					end
 				end
 			else
@@ -211,7 +211,8 @@ feature -- Move
 		do
 			last_errors.wipe_out
 			l_normalized := config.normalize_package_name (a_name)
-			l_env_name := config.package_env_var_name (l_normalized)
+			-- Legacy per-package env vars no longer used
+			l_env_name := config.root_env_var
 
 			-- Get current location from environment variable
 			l_source_path := config.get_env (l_env_name)
@@ -250,7 +251,7 @@ feature -- Move
 							else
 								last_errors.extend ("Failed to move " + l_normalized)
 								if attached l_process.last_error as err and then not err.is_empty then
-									last_errors.extend ("  " + err)
+									last_errors.extend ("  " + err.to_string_8)
 								end
 							end
 						end
@@ -327,7 +328,8 @@ feature -- Environment Conflict Detection
 			l_existing_path: detachable STRING
 		do
 			l_normalized := config.normalize_package_name (a_name)
-			l_env_name := config.package_env_var_name (l_normalized)
+			-- Legacy per-package env vars no longer used
+			l_env_name := config.root_env_var
 			l_target_path := config.package_path (l_normalized)
 
 			-- Check if env var already exists

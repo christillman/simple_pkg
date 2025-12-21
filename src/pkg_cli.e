@@ -256,7 +256,7 @@ feature -- Commands
 								console.print_line ("  [SKIP] " + p.name + " (env var points elsewhere)")
 								l_should_install := False
 							else
-								l_env_name := pkg.config.package_env_var_name (p.name)
+								l_env_name := pkg.config.root_env_var
 								l_new_path := pkg.config.package_path (p.name)
 								l_response := prompt_env_overwrite (l_env_name, conflict, l_new_path)
 								if l_response = 'A' or l_response = 'a' then
@@ -340,7 +340,7 @@ feature -- Commands
 								console.print_line ("  [SKIP] " + name + " (env var points elsewhere)")
 								l_should_install := False
 							else
-								l_env_name := pkg.config.package_env_var_name (name)
+								l_env_name := pkg.config.root_env_var
 								l_new_path := pkg.config.package_path (name)
 								l_response := prompt_env_overwrite (l_env_name, conflict, l_new_path)
 								if l_response = 'A' or l_response = 'a' then
@@ -746,7 +746,7 @@ feature -- Commands
 
 			l_installed := pkg.list_installed
 			across l_installed as name loop
-				l_env_name := pkg.config.package_env_var_name (name)
+				l_env_name := pkg.config.root_env_var
 				l_env_val := pkg.config.get_env (l_env_name)
 
 				if attached l_env_val as ev then
@@ -883,7 +883,7 @@ feature -- Commands
 			else
 				l_name := command_args.first
 				l_normalized := pkg.config.normalize_package_name (l_name)
-				l_env_var := pkg.config.package_env_var_name (l_normalized)
+				l_env_var := pkg.config.root_env_var
 
 				create l_env
 				if attached l_env.item (l_env_var) as l_env_path then
@@ -1053,7 +1053,7 @@ feature {NONE} -- Helper Features
 				Result.append ("%T%T<!-- Simple Eiffel Libraries -->%N")
 				from a_args.start; a_args.forth until a_args.after loop
 					l_lib_name := pkg.config.normalize_package_name (a_args.item)
-					l_env_var := pkg.config.package_env_var_name (a_args.item)
+					l_env_var := pkg.config.root_env_var
 					Result.append ("%T%T<library name=%"" + l_lib_name + "%" location=%"$" + l_env_var + "/" + l_lib_name + ".ecf%"/>%N")
 				end
 				Result.append ("%N")
@@ -1144,7 +1144,7 @@ feature {NONE} -- Output Helpers
 				else
 					console.print_line ("Path:   " + pkg.config.package_path (a_pkg.name))
 				end
-				console.print_line ("EnvVar: " + pkg.config.package_env_var_name (a_pkg.name))
+				console.print_line ("EnvVar: " + pkg.config.root_env_var)
 			else
 				console.print_line ("Status: Not installed")
 			end

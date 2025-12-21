@@ -334,13 +334,13 @@ feature {NONE} -- Implementation
 			-- Config directory in user home
 			if is_windows then
 				if attached l_env.get ("USERPROFILE") as l_profile then
-					config_directory := l_profile + "\.simple"
+					config_directory := l_profile.to_string_8 + "\.simple"
 				else
 					config_directory := "C:\.simple"
 				end
 			else
 				if attached l_env.get ("HOME") as l_home then
-					config_directory := l_home + "/.simple"
+					config_directory := l_home.to_string_8 + "/.simple"
 				else
 					config_directory := "/etc/simple"
 				end
@@ -396,7 +396,7 @@ feature {NONE} -- Implementation
 		do
 			create l_env
 			if attached l_env.get ("HOME") as l_home then
-				l_bashrc_path := l_home + "/.bashrc"
+				l_bashrc_path := l_home.to_string_8 + "/.bashrc"
 				create l_file.make (l_bashrc_path)
 
 				-- Build export line with marker comment for easy identification
@@ -430,7 +430,7 @@ feature {NONE} -- Implementation
 		do
 			create l_env
 			if attached l_env.get ("HOME") as l_home then
-				l_bashrc_path := l_home + "/.bashrc"
+				l_bashrc_path := l_home.to_string_8 + "/.bashrc"
 				create l_file.make (l_bashrc_path)
 
 				if l_file.exists then
