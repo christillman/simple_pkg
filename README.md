@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/simple-eiffel/claude_eiffel_op_docs/main/artwork/LOGO.png" alt="simple_ library logo" width="400">
+  <img src="https://raw.githubusercontent.com/simple-eiffel/.github/main/profile/assets/logo.png" alt="simple_ library logo" width="400">
 </p>
 
 # simple_pkg
@@ -10,8 +10,9 @@
 [![Eiffel](https://img.shields.io/badge/Eiffel-25.02-blue.svg)](https://www.eiffel.org/)
 [![Design by Contract](https://img.shields.io/badge/DbC-enforced-orange.svg)]()
 [![Platform](https://img.shields.io/badge/platform-Windows-blue.svg)]()
+[![Libraries](https://img.shields.io/badge/libraries-85+-blue)](https://github.com/simple-eiffel)
 
-GitHub-based package manager for the Simple Eiffel ecosystem.
+GitHub-based package manager for the Simple Eiffel ecosystem (85+ libraries).
 
 Part of the [Simple Eiffel](https://github.com/simple-eiffel) ecosystem.
 
@@ -52,7 +53,7 @@ end
 
 ### Windows Installer
 
-Download and run `simple-setup-1.0.9.exe` from the releases page.
+Download and run `simple-setup-1.1.0.exe` from the [releases page](https://github.com/simple-eiffel/simple_pkg/releases).
 
 ### Manual Installation (Building from Source)
 
