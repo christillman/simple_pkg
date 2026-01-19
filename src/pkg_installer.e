@@ -316,40 +316,41 @@ feature -- Uninstallation
 feature -- Environment Conflict Detection
 
 	check_env_var_conflict (a_name: STRING): detachable STRING
-			-- Check if setting env var for `a_name` would overwrite an existing value
-			-- pointing to a different location.
+			-- Check if SIMPLE_EIFFEL points to a different root than install_directory.
 			-- Returns: existing path if conflict, Void if no conflict.
+			-- Note: a_name parameter kept for backward compatibility but not used.
 		require
 			name_not_empty: not a_name.is_empty
 		local
-			l_normalized: STRING
 			l_env_name: STRING
 			l_target_path: STRING
+			l_existing: STRING
 			l_existing_path: detachable STRING
 		do
-			l_normalized := config.normalize_package_name (a_name)
-			-- Legacy per-package env vars no longer used
 			l_env_name := config.root_env_var
-			l_target_path := config.package_path (l_normalized)
+			l_target_path := config.install_directory
 
 			-- Check if env var already exists
 			l_existing_path := config.get_env (l_env_name)
 
 			if attached l_existing_path as existing then
+				-- Make a copy for comparison (original may be read-only)
+				create l_existing.make_from_string (existing)
+
 				-- Normalize paths for comparison (handle / vs \ on Windows)
 				if config.is_windows then
-					existing.replace_substring_all ("/", "\")
+					l_existing.replace_substring_all ("/", "\")
 					l_target_path.replace_substring_all ("/", "\")
 				end
 
-				-- Check if it points to a different location
-				if not existing.same_string (l_target_path) then
+				-- Check if it points to a different root location
+				if not l_existing.same_string (l_target_path) then
 					Result := existing
 				end
 			end
 		ensure
-			conflict_means_different_path: Result /= Void implies
-				not Result.same_string (config.package_path (config.normalize_package_name (a_name)))
+			conflict_means_different_root: Result /= Void implies
+				not Result.same_string (config.install_directory)
 		end
 
 feature -- Environment Setup

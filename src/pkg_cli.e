@@ -93,14 +93,14 @@ feature -- String list helpers (ARRAYED_LIST.has uses object identity!)
 
 	prompt_reinstall (a_package: STRING): CHARACTER
 			-- Prompt user about reinstalling an already-installed package.
-			-- Returns: 'Y' for yes, 'N' for no, 'A' for no to all.
+			-- Returns: 'Y' for yes, 'N' for no, 'A' for no to all (skip remaining).
 			-- Default (Enter) = No
 		require
 			package_not_empty: not a_package.is_empty
 		local
 			l_input: STRING
 		do
-			io.put_string ("Overwrite " + a_package + "? [y/N/a]: ")
+			io.put_string ("Overwrite " + a_package + "? [y]es / [N]o / no to [A]ll: ")
 			io.read_line
 			l_input := io.last_string
 			if l_input.count > 0 then
@@ -112,7 +112,7 @@ feature -- String list helpers (ARRAYED_LIST.has uses object identity!)
 
 	prompt_env_overwrite (a_env_var, a_existing_path, a_new_path: STRING): CHARACTER
 			-- Prompt user about overwriting an environment variable pointing elsewhere.
-			-- Returns: 'Y' for yes, 'N' for no, 'A' for no to all.
+			-- Returns: 'Y' for yes, 'N' for no, 'A' for no to all (skip remaining).
 			-- Default (Enter) = No
 		require
 			env_var_not_empty: not a_env_var.is_empty
@@ -122,7 +122,7 @@ feature -- String list helpers (ARRAYED_LIST.has uses object identity!)
 			l_input: STRING
 		do
 			console.print_warning (a_env_var + " already set to: " + a_existing_path)
-			io.put_string ("Overwrite with " + a_new_path + "? [y/N/a]: ")
+			io.put_string ("Overwrite with " + a_new_path + "? [y]es / [N]o / no to [A]ll: ")
 			io.read_line
 			l_input := io.last_string
 			if l_input.count > 0 then
@@ -257,7 +257,7 @@ feature -- Commands
 								l_should_install := False
 							else
 								l_env_name := pkg.config.root_env_var
-								l_new_path := pkg.config.package_path (p.name)
+								l_new_path := pkg.config.install_directory  -- Use root, not package-specific path
 								l_response := prompt_env_overwrite (l_env_name, conflict, l_new_path)
 								if l_response = 'A' or l_response = 'a' then
 									l_skip_all_env_conflicts := True
@@ -341,7 +341,7 @@ feature -- Commands
 								l_should_install := False
 							else
 								l_env_name := pkg.config.root_env_var
-								l_new_path := pkg.config.package_path (name)
+								l_new_path := pkg.config.install_directory  -- Use root, not package-specific path
 								l_response := prompt_env_overwrite (l_env_name, conflict, l_new_path)
 								if l_response = 'A' or l_response = 'a' then
 									l_skip_all_env_conflicts := True
