@@ -59,6 +59,19 @@ Download and run `simple-setup-1.1.0.exe` from the [releases page](https://githu
 
 Building simple_pkg requires cloning its dependencies first. This is a one-time bootstrap process - once simple_pkg is built, it can install the remaining packages.
 
+#### Prerequisites
+
+- **Windows 10/11** (64-bit)
+- **EiffelStudio 25.02** - [Download](https://www.eiffel.org/downloads)
+- **Visual Studio 2022** (64-bit) with:
+  - "Desktop development with C++" workload
+  - Windows 11 SDK (or Windows 10 SDK)
+  - MSVC v143 build tools
+- **Git for Windows**
+- **Gobo Eiffel** - [Download](https://github.com/gobo-eiffel/gobo/releases)
+
+> **Warning**: Visual Studio must be the **64-bit version**. If your VS is installed in `Program Files (x86)`, you have the 32-bit version which will not work with EiffelStudio.
+
 #### 1. Clone Dependencies
 
 ```bash
@@ -82,26 +95,55 @@ git clone https://github.com/simple-eiffel/simple_logger.git
 git clone https://github.com/simple-eiffel/eiffel_sqlite_2025.git
 ```
 
-#### 2. Set SIMPLE_EIFFEL Environment Variable
+#### 2. Set Environment Variables
 
-**Command Prompt (cmd.exe):**
-```cmd
-set SIMPLE_EIFFEL=C:\simple-eiffel
-```
+Open a **regular Command Prompt** (not VS prompt) and run:
 
-**PowerShell:**
-```powershell
-$env:SIMPLE_EIFFEL = "C:\simple-eiffel"
-```
-
-**Persistent (Windows):**
 ```cmd
 setx SIMPLE_EIFFEL C:\simple-eiffel
+setx GOBO C:\path\to\gobo
+setx GOBO_LIBRARY %GOBO%\library
 ```
 
-#### 3. Compile C Libraries
+> **Important**: Close and reopen your command prompt after running `setx` commands for the changes to take effect.
 
-Some libraries have C code that must be compiled before building. Open the **Visual Studio Developer Command Prompt** (or run `vcvarsall.bat`):
+#### 3. Verify Your Setup
+
+Before building, verify all prerequisites are configured:
+
+```cmd
+:: Check EiffelStudio is in PATH
+ec -version
+
+:: Check SIMPLE_EIFFEL is set
+echo %SIMPLE_EIFFEL%
+
+:: Check GOBO_LIBRARY is set
+echo %GOBO_LIBRARY%
+```
+
+All commands should succeed. If any fail, fix them before proceeding.
+
+#### 4. Compile C Libraries
+
+Some libraries have C code that must be compiled before building.
+
+Open the **x64 Native Tools Command Prompt for VS 2022**:
+- Start Menu → Visual Studio 2022 → x64 Native Tools Command Prompt
+
+> **Important**: Do not use the regular "Developer Command Prompt" - it may default to 32-bit.
+
+Verify you have the 64-bit compiler:
+
+```cmd
+cl
+```
+
+The output should show: `Microsoft (R) C/C++ Optimizing Compiler ... for x64`
+
+If it shows "for x86", you're using the wrong prompt.
+
+Now compile the C libraries:
 
 ```cmd
 cd %SIMPLE_EIFFEL%\simple_process\Clib
@@ -115,18 +157,46 @@ cl /c sqlite3.c
 cl /c esqlite.c
 ```
 
-#### 4. Build simple_pkg
+Each command should complete without errors and produce a `.obj` file.
+
+#### 5. Build simple_pkg
+
+Still in the x64 Native Tools Command Prompt:
 
 ```cmd
 cd %SIMPLE_EIFFEL%\simple_pkg
 ec -config simple_pkg.ecf -target simple_pkg_exe -finalize -c_compile
 ```
 
-#### 5. Add to PATH
+This will take several minutes. Wait for "C compilation completed".
+
+#### 6. Add to PATH
+
+**Option A - GUI (Recommended):**
+1. Press Win+R, type `sysdm.cpl`, press Enter
+2. Click "Environment Variables"
+3. Under "User variables", select "Path" and click "Edit"
+4. Click "New" and add: `C:\simple-eiffel\simple_pkg\EIFGENs\simple_pkg_exe\F_code`
+5. Click OK to save
+
+**Option B - PowerShell:**
+```powershell
+$currentPath = [Environment]::GetEnvironmentVariable("Path", "User")
+$newPath = $currentPath + ";C:\simple-eiffel\simple_pkg\EIFGENs\simple_pkg_exe\F_code"
+[Environment]::SetEnvironmentVariable("Path", $newPath, "User")
+```
+
+> **Warning**: Avoid using `setx PATH "%PATH%;..."` as it can corrupt your PATH variable if it exceeds 1024 characters or contains special characters.
+
+#### 7. Verify Installation
+
+Open a new command prompt and run:
 
 ```cmd
-setx PATH "%PATH%;%SIMPLE_EIFFEL%\simple_pkg\EIFGENs\simple_pkg_exe\F_code"
+simple version
 ```
+
+You should see the version number displayed.
 
 ## Usage
 
@@ -197,6 +267,51 @@ Uses these simple_* libraries:
 - simple_datetime - Timestamp handling
 - simple_logger - Logging
 - simple_xml - ECF parsing
+
+## Troubleshooting
+
+### "windows.h: no include path set"
+
+You're not using the correct Visual Studio command prompt. Open **x64 Native Tools Command Prompt for VS 2022** instead of the regular Developer Command Prompt or a standard cmd.exe.
+
+### "limits.h: No such file or directory"
+
+1. Verify Windows SDK is installed: VS Installer → Modify → Individual Components → Windows 11 SDK
+2. Check for PATH corruption - if you see errors when the VS command prompt opens, your PATH may be corrupted
+3. Open a fresh x64 Native Tools Command Prompt and try again
+
+### "\Windows was unexpected at this time" (or similar parsing errors)
+
+Your PATH variable has parsing errors, often caused by:
+- Trailing semicolons at the end of PATH entries
+- Unescaped special characters
+- Missing closing quotes
+
+**Fix**: Edit PATH via the GUI (Win+R → `sysdm.cpl` → Environment Variables → Edit Path) and remove any malformed entries.
+
+### Compiler shows "for x86" instead of "for x64"
+
+Either:
+1. You installed the 32-bit Visual Studio (check if it's in `Program Files (x86)`)
+2. You're using the wrong command prompt - use **x64 Native Tools Command Prompt**
+
+### sqlite3.obj or esqlite.obj errors during ec compilation
+
+The C libraries weren't compiled correctly or were compiled with the wrong compiler. Return to Step 4 and recompile all C files using the x64 Native Tools Command Prompt.
+
+### "GOBO_LIBRARY" or "SIMPLE_EIFFEL" not found
+
+Environment variables weren't set or the command prompt wasn't restarted after `setx`. Either:
+1. Close and reopen your command prompt
+2. Set them temporarily in the current session:
+   ```cmd
+   set SIMPLE_EIFFEL=C:\simple-eiffel
+   set GOBO_LIBRARY=%GOBO%\library
+   ```
+
+### ec command not found
+
+EiffelStudio is not in your PATH. Add `C:\Program Files\Eiffel Software\EiffelStudio 25.02 Standard\studio\spec\win64\bin` to your PATH.
 
 ## License
 
