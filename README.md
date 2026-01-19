@@ -97,7 +97,25 @@ git clone https://github.com/simple-eiffel/eiffel_sqlite_2025.git
 
 #### 2. Set Environment Variables
 
-Open a **regular Command Prompt** (not VS prompt) and run:
+> **Warning**: The `setx` command has a **1024 character limit** and silently truncates longer values. This is particularly dangerous for PATH. Use the PowerShell method below instead.
+
+**Option A: PowerShell (Recommended)**
+
+Open PowerShell and run:
+
+```powershell
+[Environment]::SetEnvironmentVariable("SIMPLE_EIFFEL", "C:\simple-eiffel", "User")
+[Environment]::SetEnvironmentVariable("GOBO", "C:\path\to\gobo", "User")
+[Environment]::SetEnvironmentVariable("GOBO_LIBRARY", "C:\path\to\gobo\library", "User")
+```
+
+**Option B: GUI Method (Safest)**
+
+1. Press `Win+R`, type `sysdm.cpl`, press Enter
+2. Click "Advanced" tab → "Environment Variables"
+3. Under "User variables", click "New" for each variable
+
+**Option C: setx (Legacy - use with caution)**
 
 ```cmd
 setx SIMPLE_EIFFEL C:\simple-eiffel
@@ -105,7 +123,7 @@ setx GOBO C:\path\to\gobo
 setx GOBO_LIBRARY %GOBO%\library
 ```
 
-> **Important**: Close and reopen your command prompt after running `setx` commands for the changes to take effect.
+> **Important**: Close and reopen your command prompt after setting environment variables for the changes to take effect.
 
 #### 3. Verify Your Setup
 
@@ -280,9 +298,19 @@ You're not using the correct Visual Studio command prompt. Open **x64 Native Too
 2. Check for PATH corruption - if you see errors when the VS command prompt opens, your PATH may be corrupted
 3. Open a fresh x64 Native Tools Command Prompt and try again
 
+### "WARNING: The data being saved is truncated to 1024 characters"
+
+The `setx` command has a hard 1024 character limit. If you see this warning, **your environment variable was corrupted**. This commonly happens when appending to PATH.
+
+**Fix**:
+1. Open GUI: `Win+R` → `sysdm.cpl` → Environment Variables
+2. Check the affected variable and restore it manually
+3. Use PowerShell instead: `[Environment]::SetEnvironmentVariable("VAR", "value", "User")`
+
 ### "\Windows was unexpected at this time" (or similar parsing errors)
 
 Your PATH variable has parsing errors, often caused by:
+- Truncation from `setx` exceeding 1024 characters
 - Trailing semicolons at the end of PATH entries
 - Unescaped special characters
 - Missing closing quotes
